@@ -3,4 +3,4 @@
 
 ## 資料集
 自現有kaggle資料庫(https://www.kaggle.com/datasets/sumitrodatta/nba-aba-baa-stats) 提取球員數據，並針對2000-2023球員進入聯盟前兩年之平均數據與第三年之win share進行篩選
-[NBA_Normalized_Final.csv](data/NBA_Normalized_Final.csv)
+(https://www.kaggle.com/datasets/yhsarawang/nba-players-first-two-year-average-data)
