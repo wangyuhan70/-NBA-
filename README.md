@@ -1,5 +1,5 @@
-# -NBA-
-本專題透過分析 2000 年至 2023 年進入 NBA 的球員數據，旨在建立一個能精準預測球員長期價值的決策系統。技術核心首先利用多種ˋ一氣學習模型，以前兩年的基礎表現數據為輸入特徵，預測球員生涯的 Win Share 總值，並以 $R^2$ 作為評核模型擬合優度的關鍵指標。在量化數據之外，本研究更進一步結合爬蟲技術抓取球員相關新聞，運用自然語言處理與深度學習對標題進行情感分析，將球員的場外輿論與心理特質轉化為關鍵變數，與 Win Share 預測值共同構成球隊執行選擇權的判斷基準。未來，專題計畫導入大型語言模型（LLM），針對球員的數據表現與新聞動態產出深度的自動化分析報告，提供更具解釋性與前瞻性的建隊策略建議。
+# 基於多模型回歸與新聞情感分析之 NBA 球員價值預測與合約決策系統
+本專題透過分析 2000 年至 2023 年進入 NBA 的球員數據，旨在建立一個能精準預測球員價值的決策系統。技術核心首先利用多種機器學習模型，以前兩年的基礎表現數據為輸入特徵，預測首輪選秀進入聯盟之球員生涯的 Win Share 總值，並以 $R^2$ 作為評核模型擬合優度的關鍵指標。在量化數據之外，本研究更進一步結合爬蟲技術抓取球員相關新聞，運用自然語言處理與深度學習對標題進行情感分析，將球員的場外輿論與心理特質轉化為關鍵變數，與 Win Share 預測值共同構成球隊執行選擇權的判斷基準。未來，專題計畫導入大型語言模型（LLM），針對球員的數據表現與新聞動態產出深度的自動化分析報告，提供更具解釋性與前瞻性的建隊策略建議。
 
 ## 資料集
 自現有kaggle資料庫[![Kaggle](https://img.shields.io/badge/Kaggle-035a7d?style=for-the-badge&logo=kaggle&logoColor=white)](https://www.kaggle.com/datasets/sumitrodatta/nba-aba-baa-stats) 提取球員數據，並針對2000-2023球員進入聯盟前兩年之平均數據與第三年之win share進行篩選
@@ -20,9 +20,6 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split, RandomizedSearchCV, KFold
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
-# =========================
-# 1) 讀取 & 篩選
-# =========================
 df = pd.read_csv('NBA_Normalized_Final.csv')
 bool_cols = [
     'Is_Undrafted',
@@ -58,9 +55,6 @@ X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
 
-# =========================
-# 2) 定義評估函數
-# =========================
 def eval_regression(y_true, y_pred, name="Model"):
     mse = mean_squared_error(y_true, y_pred)
     rmse = np.sqrt(mse)
@@ -72,13 +66,7 @@ def eval_regression(y_true, y_pred, name="Model"):
     print("R²  :", r2)
     return rmse, mae, r2
 
-# =========================
-# 3) Random Forest + 隨機搜尋調參
-# =========================
 rf = RandomForestRegressor(random_state=42, n_jobs=-1)
-
-
-
 param_dist = {
     
     "max_depth": [3, 4, 5, 6], 
@@ -105,18 +93,12 @@ search = RandomizedSearchCV(
 
 search.fit(X_train, y_train)
 
-# =========================
-# 4) 輸出最佳參數與 CV 表現
-# =========================
 print("\nBest Params:")
 print(search.best_params_)
 
 best_r2_cv = search.best_score_
 print("\nBest CV R^2:", best_r2_cv)
 
-# =========================
-# 5) 用最佳模型做 train/test 評估
-# =========================
 best_model = search.best_estimator_
 
 y_pred_train = best_model.predict(X_train)
@@ -128,10 +110,6 @@ eval_regression(y_test, y_pred_test, "Best RF - Test")
 train_r2 = np.sqrt(mean_squared_error(y_train, y_pred_train))
 test_r2 = np.sqrt(mean_squared_error(y_test, y_pred_test))
 
-
-# =========================
-# 6) 特徵重要度
-# =========================
 importances = pd.Series(best_model.feature_importances_, index=feature_cols).sort_values(ascending=False)
 print(importances.head(10))
 ```
@@ -151,9 +129,6 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import RidgeCV, Ridge
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 
-# =========================
-# 1. 讀取與清理資料
-# =========================
 df = pd.read_csv('NBA_Normalized_Final.csv')
 
 bool_cols = ['Is_Undrafted', 'Pos_PG', 'Pos_C', 'Pos_SG', 'Pos_SF', 'Pos_PF']
@@ -161,9 +136,6 @@ for col in bool_cols:
     if col in df.columns:
         df[col] = df[col].astype(str).str.upper().map({"TRUE": 1, "FALSE": 0})
 
-# =========================
-# 2. 篩選資料 
-# =========================
 df_g = df[(df['season'] > 1) & (df['year_start'] > 1999)].copy()
 
 feature_cols = [
@@ -175,7 +147,6 @@ feature_cols = [
 ]
 target_col = 'Year3_WS'
 
-# 清洗目標值與特徵值
 data = df_g.dropna(subset=[target_col]).copy()
 for c in feature_cols:
     data[c] = pd.to_numeric(data[c], errors='coerce')
@@ -185,16 +156,10 @@ data = data.dropna(subset=[target_col]).copy()
 X = data[feature_cols].copy()
 y = data[target_col].copy()
 
-# =========================
-# 3. 切分訓練 / 測試
-# =========================
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
 
-# =========================
-# 4. RidgeCV
-# =========================
 alphas = np.logspace(-4, 4, 60)
 cv_splits = min(5, len(X_train))
 
@@ -206,22 +171,14 @@ ridge_pipe = Pipeline(steps=[
 
 ridge_pipe.fit(X_train, y_train)
 
-# 計算各項 R2
 train_r2 = r2_score(y_train, ridge_pipe.predict(X_train))
 best_cv_r2 = ridge_pipe.named_steps["model"].best_score_
 test_r2 = r2_score(y_test, ridge_pipe.predict(X_test))
 
-# 計算其他指標 
 y_pred_test = ridge_pipe.predict(X_test)
 rmse_test = np.sqrt(mean_squared_error(y_test, y_pred_test))
 mae_test = mean_absolute_error(y_test, y_pred_test)
 
-# =========================
-# 5. 輸出結果
-# =========================
-print("\n" + "="*40)
-print("       RIDGE REGRESSION FINAL REPORT")
-print("="*40)
 print(f"1. Train R²:   {train_r2:.4f}")
 print(f"2. Best CV R² :  {best_cv_r2:.4f}")
 print(f"3. Test R²:   {test_r2:.4f}")
@@ -231,9 +188,6 @@ print(f"Test RMSE:                {rmse_test:.4f}")
 print(f"Test MAE:                 {mae_test:.4f}")
 print("="*40)
 
-# =========================
-# 6. 特徵係數排名 
-# =========================
 coefs = ridge_pipe.named_steps["model"].coef_
 coef_df = pd.DataFrame({"feature": feature_cols, "coef": coefs})
 coef_df["abs_coef"] = coef_df["coef"].abs()
@@ -255,9 +209,6 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import Lasso
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 
-# =========================
-# 1. 讀取與清理資料
-# =========================
 df = pd.read_csv('NBA_Normalized_Final.csv')
 
 bool_cols = ['Is_Undrafted', 'Pos_PG', 'Pos_C', 'Pos_SG', 'Pos_SF', 'Pos_PF']
@@ -266,10 +217,7 @@ for col in bool_cols:
         df[col] = df[col].astype(str).str.upper().map({"TRUE": 1, "FALSE": 0})
 target_year=2023
 
-# =========================
-# 2. 篩選資料 (三年級 WS 預測)
-# =========================
-df_g = df[(df['season'] > 2)&(df['year_start']>1999)&(df['year_start']!=target_year) ].copy()
+df_g = df[(df['season'] > 1)&(df['year_start']>1999)&(df['year_start']!=target_year) ].copy()
 
 feature_cols = [
     '2P%','2PA','3P','3P%','3PA','3PAr','AST','AST%','BLK','BLK%','BPM','DBPM',
@@ -278,9 +226,8 @@ feature_cols = [
     'Pos_SF','Pos_SG','STL','STL%','TOV','TOV%','TRB','TRB%','TS%','USG%',
     'VORP','WS','WS/48','eFG%'
 ]
-target_col = 'Year4_WS'
+target_col = 'Year3_WS'
 
-# 清洗目標值與特徵值
 data = df_g.dropna(subset=[target_col]).copy()
 for c in feature_cols:
     data[c] = pd.to_numeric(data[c], errors='coerce')
@@ -290,28 +237,19 @@ data = data.dropna(subset=[target_col]).copy()
 X = data[feature_cols].copy()
 y = data[target_col].copy()
 
-# =========================
-# 3. 切分訓練 / 測試 
-# =========================
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
 
-# =========================
-# 4. 建立 Pipeline 與 GridSearchCV
-# =========================
-
 alphas = np.logspace(-4, 1, 40)
 cv_splits = min(5, len(X_train))
 
-# 建立管線
 pipeline = Pipeline([
     ("imputer", SimpleImputer(strategy="median")),
     ("scaler", StandardScaler()),
     ("lasso", Lasso(max_iter=50000, random_state=42, tol=1e-4))
 ])
 
-# 使用 GridSearchCV 來自動尋找最佳 alpha
 param_grid = {'lasso__alpha': alphas}
 grid_search = GridSearchCV(
     pipeline, 
@@ -323,47 +261,32 @@ grid_search = GridSearchCV(
 
 grid_search.fit(X_train, y_train)
 
-# =========================
-# 5. 計算各項指標
-# =========================
-# 取出最佳模型
 best_model = grid_search.best_estimator_
 best_alpha = grid_search.best_params_['lasso__alpha']
 best_cv_r2 = grid_search.best_score_
 
-# 預測並計算 R2
+
 train_r2 = r2_score(y_train, best_model.predict(X_train))
 test_r2 = r2_score(y_test, best_model.predict(X_test))
 
-# 計算 RMSE 與 MAE
 y_pred_test = best_model.predict(X_test)
 rmse_test = np.sqrt(mean_squared_error(y_test, y_pred_test))
 mae_test = mean_absolute_error(y_test, y_pred_test)
 
-# 提取 Lasso 獨有的「特徵選擇」結果
 lasso_coefs = best_model.named_steps["lasso"].coef_
 n_total_features = len(feature_cols)
 n_retained_features = np.sum(lasso_coefs != 0)
 
-# =========================
-# 6. 正式輸出實戰報告
-# =========================
-print("\n" + "="*45)
-print("         LASSO REGRESSION FINAL REPORT")
-print("="*45)
-print(f"1. Train R² (訓練集得分):   {train_r2:.4f}")
-print(f"2. Best CV R² (交叉驗證):  {best_cv_r2:.4f}")
-print(f"3. Test R² (實測測試集):   {test_r2:.4f}")
+print(f"1. Train R² :   {train_r2:.4f}")
+print(f"2. Best CV R² :  {best_cv_r2:.4f}")
+print(f"3. Test R² :   {test_r2:.4f}")
 print("-" * 45)
-print(f"Chosen Alpha (最佳 λ):     {best_alpha:.4f}")
+print(f"Chosen Alpha :     {best_alpha:.4f}")
 print(f"Test RMSE:                {rmse_test:.4f}")
 print(f"Test MAE:                 {mae_test:.4f}")
 print(f"Feature Selection:        保留 {n_retained_features} / {n_total_features} 個特徵")
 print("="*45)
 
-# =========================
-# 7. 顯示被 Lasso 保留的關鍵特徵
-# =========================
 coef_df = pd.DataFrame({"feature": feature_cols, "coef": lasso_coefs})
 coef_df["abs_coef"] = coef_df["coef"].abs()
 
@@ -388,9 +311,6 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import ElasticNet
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 
-# =========================
-# 1. 讀取與清理資料
-# =========================
 df = pd.read_csv('NBA_Normalized_Final_3.csv')
 
 bool_cols = ['Is_Undrafted', 'Pos_PG', 'Pos_C', 'Pos_SG', 'Pos_SF', 'Pos_PF']
@@ -398,9 +318,6 @@ for col in bool_cols:
     if col in df.columns:
         df[col] = df[col].astype(str).str.upper().map({"TRUE": 1, "FALSE": 0})
 
-# =========================
-# 2. 篩選資料 (四年級 WS 預測)
-# =========================
 df_g = df[(df['season'] > 2) & (df['year_start'] > 1999) ].copy()
 
 feature_cols = [
@@ -421,28 +338,20 @@ data = data.dropna(subset=[target_col]).copy()
 X = data[feature_cols].copy()
 y = data[target_col].copy()
 
-# =========================
-# 3. 切分訓練 / 測試 
-# =========================
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
 
-# =========================
-# 4. 建立 Pipeline 與 GridSearchCV (自動尋找最佳 alpha & l1_ratio)
-# =========================
 alphas = np.logspace(-4, 1, 30)
 l1_ratios = [0.1, 0.3, 0.5, 0.7, 0.9]
 cv_splits = min(5, len(X_train))
 
-# 建立管線
 pipeline = Pipeline([
     ("imputer", SimpleImputer(strategy="median")),
     ("scaler", StandardScaler()),
     ("enet", ElasticNet(max_iter=200000, random_state=42, tol=1e-4))
 ])
 
-# 使用 GridSearchCV
 param_grid = {
     'enet__alpha': alphas,
     'enet__l1_ratio': l1_ratios
@@ -458,53 +367,36 @@ grid_search = GridSearchCV(
 
 grid_search.fit(X_train, y_train)
 
-# =========================
-# 5. 計算各項指標
-# =========================
-# 取出最佳模型與參數
 best_model = grid_search.best_estimator_
 best_alpha = grid_search.best_params_['enet__alpha']
 best_l1_ratio = grid_search.best_params_['enet__l1_ratio']
 best_cv_r2 = grid_search.best_score_
 
-# 預測並計算 R2
 train_r2 = r2_score(y_train, best_model.predict(X_train))
 test_r2 = r2_score(y_test, best_model.predict(X_test))
 
-# 計算 RMSE 與 MAE
 y_pred_test = best_model.predict(X_test)
 rmse_test = np.sqrt(mean_squared_error(y_test, y_pred_test))
 mae_test = mean_absolute_error(y_test, y_pred_test)
 
-# 提取 Elastic Net 獨有的「特徵選擇」結果
 enet_coefs = best_model.named_steps["enet"].coef_
 n_total_features = len(feature_cols)
 n_retained_features = np.sum(enet_coefs != 0)
 
-# =========================
-# 6. 正式輸出實戰報告
-# =========================
-print("\n" + "="*48)
-print("       ELASTIC NET REGRESSION FINAL REPORT")
-print("="*48)
-print(f"1. Train R² (訓練集得分):   {train_r2:.4f}")
-print(f"2. Best CV R² (交叉驗證):  {best_cv_r2:.4f}")
-print(f"3. Test R² (實測測試集):   {test_r2:.4f}")
+print(f"1. Train R² :   {train_r2:.4f}")
+print(f"2. Best CV R² :  {best_cv_r2:.4f}")
+print(f"3. Test R² :   {test_r2:.4f}")
 print("-" * 48)
-print(f"Chosen Alpha (最佳懲罰):   {best_alpha:.4f}")
-print(f"Chosen L1 Ratio (L1比例): {best_l1_ratio:.4f}")
+print(f"Chosen Alpha :   {best_alpha:.4f}")
+print(f"Chosen L1 Ratio : {best_l1_ratio:.4f}")
 print(f"Test RMSE:                {rmse_test:.4f}")
 print(f"Test MAE:                 {mae_test:.4f}")
 print(f"Feature Selection:        保留 {n_retained_features} / {n_total_features} 個特徵")
 print("="*48)
 
-# =========================
-# 7. 顯示被 Elastic Net 保留的關鍵特徵
-# =========================
 coef_df = pd.DataFrame({"feature": feature_cols, "coef": enet_coefs})
 coef_df["abs_coef"] = coef_df["coef"].abs()
 
-# 只列出係數不為 0 的特徵
 active_features = coef_df[coef_df["coef"] != 0].sort_values("abs_coef", ascending=False)
 
 print(active_features[["feature", "coef"]].head(15).to_string(index=False))
@@ -521,12 +413,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from sklearn.ensemble import GradientBoostingRegressor
-from sklearn.model_selection import train_test_split, RandomizedSearchCV, KFold # 💡 匯入 RandomizedSearchCV
+from sklearn.model_selection import train_test_split, RandomizedSearchCV, KFold
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
-
-# -----------------------
-# 1) 讀資料 & 篩選
-# -----------------------
+-
 df = pd.read_csv('NBA_Normalized_Final.csv')
 bool_cols = ['Is_Undrafted', 'Pos_PG', 'Pos_C', 'Pos_SG', 'Pos_SF', 'Pos_PF']
 
@@ -543,16 +432,10 @@ data = df_g.dropna(subset=feature_cols + [target_col])
 X = data[feature_cols]
 y = data[target_col]
 
-# -----------------------
-# 2) 切 train/test 
-# -----------------------
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
 
-# -----------------------
-# 3) 建立模型 + RandomizedSearch
-# -----------------------
 gbr = GradientBoostingRegressor(random_state=42)
 
 
@@ -586,9 +469,6 @@ print("Best CV R²:", grid.best_score_)
 
 best_model = grid.best_estimator_
 
-# -----------------------
-# 4) 評估（Train/Test）
-# -----------------------
 y_train_pred = best_model.predict(X_train)
 y_test_pred  = best_model.predict(X_test)
 
@@ -623,18 +503,13 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.cross_decomposition import PLSRegression
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error, median_absolute_error
 
-# =========================
-# 1.讀取與準備資料
-# =========================
 df = pd.read_csv('NBA_Normalized_Final.csv')
 
-# 布林欄位處理
 bool_cols = ['Is_Undrafted', 'Pos_PG', 'Pos_C', 'Pos_SG', 'Pos_SF', 'Pos_PF']
 for col in bool_cols:
     if col in df.columns:
         df[col] = df[col].astype(str).str.upper().map({"TRUE": 1, "FALSE": 0})
 
-# 篩選資料 (三年級 WS 預測)
 df_g = df[(df['season'] > 1) & (df['year_start'] > 1999)].copy()
 
 feature_cols = [
@@ -646,7 +521,6 @@ feature_cols = [
 ]
 target_col = 'Year3_WS'
 
-# 清洗目標值 
 data = df_g.dropna(subset=[target_col]).copy()
 for c in feature_cols:
     data[c] = pd.to_numeric(data[c], errors='coerce')
@@ -656,16 +530,10 @@ data = data.dropna(subset=[target_col]).copy()
 X = data[feature_cols].copy()
 y = data[target_col].copy()
 
-# =========================
-# 2.切分 train/test
-# =========================
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
 
-# =========================
-# 3.建立 Pipeline 與 GridSearchCV 
-# =========================
 param_grid = {'pls__n_components': range(1, 21)}
 cv_splits = min(5, len(X_train))
 
@@ -685,20 +553,13 @@ grid_search = GridSearchCV(
 
 grid_search.fit(X_train, y_train)
 
-# 取出最佳模型
 best_model = grid_search.best_estimator_
 best_n_components = grid_search.best_params_['pls__n_components']
 best_cv_r2 = grid_search.best_score_
 
-# =========================
-# 4.預測 
-# =========================
 y_train_pred = best_model.predict(X_train).ravel()
 y_test_pred = best_model.predict(X_test).ravel()
 
-# =========================
-# 5.計算基本誤差與 R2
-# =========================
 train_r2 = r2_score(y_train, y_train_pred)
 test_r2 = r2_score(y_test, y_test_pred)
 
@@ -708,9 +569,6 @@ rmse_test  = np.sqrt(mean_squared_error(y_test, y_test_pred))
 mae_test = mean_absolute_error(y_test, y_test_pred)
 medae_test = median_absolute_error(y_test, y_test_pred)
 
-# =========================
-# 6.CV RMSE 
-# =========================
 cv = KFold(n_splits=5, shuffle=True, random_state=42)
 cv_scores = cross_val_score(
     best_model, X_train, y_train,
@@ -720,14 +578,8 @@ cv_scores = cross_val_score(
 cv_mean = -cv_scores.mean()
 cv_std  = cv_scores.std(ddof=1)
 
-# =========================
-# 7.Train–Test Gap
-# =========================
 gap = rmse_test - rmse_train
 
-# =========================
-# 8.Spearman rank correlation
-# =========================
 def spearman_corr(y_true, y_pred):
     rt = np.argsort(np.argsort(y_true))
     rp = np.argsort(np.argsort(y_pred))
@@ -735,12 +587,6 @@ def spearman_corr(y_true, y_pred):
 
 spearman = spearman_corr(y_test, y_test_pred)
 
-# =========================
-# 9.輸出報告
-# =========================
-print("\n" + "="*45)
-print("          PLS REGRESSION EVALUATION")
-print("="*45)
 print(f"Chosen n_components:      {best_n_components}")
 print(f"Train R²:                 {train_r2:.6f}")
 print(f"Best CV R² (train_5fold): {best_cv_r2:.6f}")
@@ -785,7 +631,7 @@ $\Rightarrow$ 本專案最終選定 Lasso Regression 作為球隊合約決策矩
 1. **生涯表現預測**：採用最優之機器學習模型（Lasso），預測球員關鍵第三年的預期勝場貢獻度 $\widehat{WS}$。
 2. **邊際價值計算**：結合該年度的薪資上限（Salary Cap）與籃球相關收入因子（BRI Factor），計算每單位 Win Share 的市場邊際價值量化公式如下：
    
-   $$Marginal\ Value\ per\ WS = \frac{Salary\ Cap \times Team\ Count \times BRI\ Factor}{Total\ Games}$$
+$$Marginal\ Value\ per\ WS = \frac{Salary\ Cap \times Team\ Count \times BRI\ Factor}{Total\ Games}$$
 
 3. **理論薪資佔比估算**：依據上述邊際價值，推導出該球員在健康市場機制下應得的「理論薪資佔比（*Pred_Salary_Share_Percent*）」：
    
