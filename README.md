@@ -651,9 +651,11 @@ $$Marginal\ Value\ per\ WS = \frac{Salary\ Cap \times Team\ Count \times BRI\ Fa
 
 2. **基於統計誤差（RMSE）的決策優化**：
    在實測中，單純的硬閾值判定會導致部分邊緣球員的預測結果出現不合理偏差。為了提升模型的容錯率與實務應用價值，本系統引入了**模型均方根誤差（RMSE）作為動態緩衝範圍**。
-   * **優化機制**：若系統初步判定為「不執行」，但兩者間的價值差距小於最優模型的統計誤差範圍時，即：
+   * **優化機制**：
+   * 若系統初步判定為「不執行」，但兩者間的價值差距小於最優模型的統計誤差範圍時，即：
      
      |*Est_Cost_Percent - Pred_Salary_Share_Percent*| $$\le RMSE$$
+   * 因在現實環境中，部分球員在成本較高而表現尚可的情形下，球團多會願意執行合約培養球員，因此
      
    * **決策修正**：系統會自動將該球員從「不執行」修正移入「球團重點觀察名單（Watchlist）」，並結合次階段的新聞情感分析（NLP Sentiment Score）進行質化調校，避免錯估具備潛在爆發力或場外正面效應的邊緣球員。
   
@@ -661,5 +663,5 @@ $$Marginal\ Value\ per\ WS = \frac{Salary\ Cap \times Team\ Count \times BRI\ Fa
 預測結果輸出範例：
 
 <p align="left">
-  <img src="./images/lasso_results.png" alt="Lasso 模型預測結果" width="80%">
+  <img src="./images/Lasso_results.png" alt="Lasso 模型預測結果" width="80%">
 </p>
