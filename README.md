@@ -812,5 +812,8 @@ $\Rightarrow$ 本專案最終選定 Lasso Regression 作為球隊合約決策矩
    * **決策修正**：系統會自動將該球員從「不執行」修正移入「球團重點觀察名單（Watchlist）」，並結合次階段的新聞情感分析（NLP Sentiment Score）進行質化調校，避免錯估具備潛在爆發力或場外正面效應的邊緣球員。
   
 
+預測結果輸出範例：
 
-
+<p align="left">
+  <img src="./images/lasso_results.png" alt="Lasso 模型預測結果" width="80%">
+</p>
