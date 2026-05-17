@@ -676,4 +676,5 @@ $$Dynamic\ Truth\ WS = \max\left( \frac{Est\ Cost\ Percent}{Marginal\ Value\ per
    * 判定條件：未通過上述所有關卡 $\rightarrow$ **強烈建議不執行 (Decline Option)**。
    * 決策說明：球員實力嚴重衰退，既未達專屬的動態及格線，又缺乏商業票房變現能力，為避免資產套牢，應果斷拒絕執行並釋出薪資空間。
   
-
+預測結果範例：
+![image](https://github.com/wangyuhan70/-NBA-/blob/main/images/Contract%20Decision.png)
