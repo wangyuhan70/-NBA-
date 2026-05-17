@@ -622,46 +622,58 @@ print("="*45)
 
 $\Rightarrow$ 本專案最終選定 Lasso Regression 作為球隊合約決策矩陣的核心預測引擎
 
-## Win Share預測及球員報酬計算
-為使Win Share能真實反映球員帶來之報酬，並結合實質選擇權概念計算球員現價，同時消弭不同年代貨幣價值波動帶來之預測誤差，本研究以以下方法進行球員價值預測：
+## Win Share預測及球隊選擇權合約執行決策
+為使Win Share能真實反映球員帶來之報酬，並結合實質選擇權概念計算球員現價，同時消弭不同年代貨幣價值波動帶來之預測誤差，本研究以以下方法進行球員價值預測與決策：
 
 #### 一、 球員實質價值與理論薪資估算 (Valuation Phase)
 系統首先量化球員在聯盟第三年的預期邊際貢獻，將其場上表現轉化為理論薪資佔比：
 
 1. **生涯表現預測**：採用最優之機器學習模型（Lasso），預測球員關鍵第三年的預期勝場貢獻度 $\widehat{WS}$。
-2. **邊際價值計算**：結合該年度的薪資上限（Salary Cap）與籃球相關收入因子（BRI Factor），計算每單位 Win Share 的市場邊際價值量化公式如下：
+2. **邊際價值計算**：結合該年度的薪資上限（Salary Cap）與籃球相關收入因子（BRI Factor），計算每單位 Win Share 的市場邊際價值，量化公式如下：
    
 $$Marginal\ Value\ per\ WS = \frac{Salary\ Cap \times Team\ Count \times BRI\ Factor}{Total\ Games}$$
 
 3. **理論薪資佔比估算**：依據上述邊際價值，推導出該球員在健康市場機制下應得的「理論薪資佔比（*Pred_Salary_Share_Percent*）」：
    
-  $$Pred\ Salary\ Share\ Percent = \left[ \frac{\widehat{WS} \times Marginal\ Value\ per\ WS}{Salary\ Cap} \right] \times 100\%$$
+$$Pred\ Salary\ Share\ Percent = \left[ \frac{\widehat{WS} \times Marginal\ Value\ per\ WS}{Salary\ Cap} \right] \times 100\%$$
 
-#### 二、 定額合約成本基準 (Cost Benchmark Phase)
+#### 二、 傷病風險校正 (Risk-Adjusted Valuation Phase)
+導入客觀傷病日誌進行醫療風險定價（Medical Red Flag）。依據球員生涯前兩年之缺賽場次與受傷部位，給予 0 至 3 分的嚴重度評分。
+* **風險折價**：每承受 1 級傷病風險，將對理論身價進行 0.3% 的團隊薪資空間折價，計算出經風險校正後的實質理論身價：
 
-依據 NBA 勞資協議（CBA）之規定，首輪新秀合約前幾年的薪資與選秀順位高度相關且受到嚴格規範。系統會根據該球員的選秀順位，自動導入對應之新秀標準薪資，並計算出其佔當年度薪資上限的「合約成本佔比（*Est_Cost_Percent*）」，作為決策對比的硬性基準線。
+$$Adjusted\ Pred\ Salary\ Percent = Pred\ Salary\ Share\ Percent - (Worst\ Injury\ History \times 0.3\%)$$
 
-#### 三、 動態決策矩陣與誤差優化 (Decision & Optimization Phase)
+#### 三、 定額合約成本基準 (Cost Benchmark Phase)
+依據 NBA 勞資協議（CBA）之規定，首輪新秀合約前幾年的薪資與選秀順位高度相關且受到嚴格規範。系統會根據該球員的選秀順位，自動導入對應之新秀標準薪資，並計算出其佔當年度薪資上限的「合約成本佔比（*Est_Cost_Percent*）」，作為決策對比的硬性基準線。進而得出該資產的帳面盈虧：
 
-在實務決策中，單純依據數值高低進行二分法判定（硬閾值決策）容易因統計噪聲而失真。因此，本系統設計了動態決策緩衝機制：
+$$Net\ Value\ Surplus = Adjusted\ Pred\ Salary\ Percent - Est\ Cost\ Percent$$
 
-1. **基礎決策邏輯**：
-   * 當*Pred_Salary_Share_Percent* $$\ge$$ *Est_Cost_Percent* 時 $\rightarrow$ **執行選擇權（Exercise Option）**。
-   * 當 *Pred_Salary_Share_Percent* $$<$$ *Est_Cost_Percent*時 $\rightarrow$ **判定不執行（Decline Option）**。
+#### 四、 動態機會成本及格線 (Dynamic Opportunity Cost Phase)
+高順位新秀成本高，放走他所釋出的薪資空間能買到更多資產，因此其續約及格線必須動態調高。系統結合 CBA 底薪老將替代成本（約佔上限 1.8%，保底產能約 0.64 WS），建立動態機會成本線：
 
-2. **基於統計誤差（RMSE）的決策優化**：
-   在實測中，單純的硬閾值判定會導致部分邊緣球員的預測結果出現不合理偏差。為了提升模型的容錯率與實務應用價值，本系統引入了**模型均方根誤差（RMSE）作為動態緩衝範圍**。
-   * **優化機制**：
-   * 若系統初步判定為「不執行」，但兩者間的價值差距小於最優模型的統計誤差範圍時，即：
-     
-     |*Est_Cost_Percent - Pred_Salary_Share_Percent*| $$\le RMSE$$
-   * 因在現實環境中，部分球員在成本較高而表現尚可的情形下，球團多會願意執行合約培養球員，因此
-     
-   * **決策修正**：系統會自動將該球員從「不執行」修正移入「球團重點觀察名單（Watchlist）」，並結合次階段的新聞情感分析（NLP Sentiment Score）進行質化調校，避免錯估具備潛在爆發力或場外正面效應的邊緣球員。
+$$Dynamic\ Truth\ WS = \max\left( \frac{Est\ Cost\ Percent}{Marginal\ Value\ per\ WS},\ 0.64 \right)$$
+
+#### 五、 多層瀑布流決策矩陣 (Multi-Layer Waterfall Decision Phase)
+在實務決策中，單純依據數值高低進行二分法判定（硬閾值決策）容易因統計噪聲而失真。因此，本系統捨棄傳統單一閾值，設計了由上而下的多層防護網（實質選擇權）決策機制：
+
+1. **第一關：絕對財務獲利區 (Profitable Zone)**
+   * 判定條件： $Net\ Value\ Surplus > 0$ $\rightarrow$ **建議執行 (Exercise Option)**。
+   * 決策說明：球員產出之期望價值在扣除傷病風險折價後，依然高於其合約成本，屬於絕對的正資產。
+
+2. **第二關：統計容錯區 (Statistical Buffer Zone)**
+   * 判定條件：初步虧損，但落於模型均方根誤差（RMSE）之內，即 $Net\ Value\ Surplus \ge -RMSE$ $\rightarrow$ **建議執行 (Exercise Option)**。
+   * 決策說明：基於統計學之保守原則，避免因預測微幅誤差而錯殺邊緣潛力球員。
+
+3. **第三關：動態機會成本救贖 (Dynamic Opportunity Cost Saved)**
+   * 判定條件：虧損大於 RMSE，但其場上產能大於自由市場替代方案，即 $\widehat{WS} \ge Dynamic\ Truth\ WS$ $\rightarrow$ **建議執行 (Exercise Option)**。
+   * 決策說明：雖然帳面嚴重溢價，但若釋出其薪資空間去自由市場「開盲盒」，買到的替代品期望值更低。留下他微虧，放走虧更多，故強制觸發安全網予以保留。
+
+4. **第四關：商業聲量票房救場 (NLP Star Power Premium)**
+   * 判定條件：未達上述標準，但利用 RoBERTa 萃取之新聞情感聲量位居同梯次前 30%（即 PR 70 以上），且財務虧損落於 1.5 倍 RMSE 擴張容錯區間內 $\rightarrow$ **建議執行 (Exercise Option)**。
+   * 決策說明：結合運動經濟學之「超級巨星效應（Superstar Effect）」，賦予高關注度球員 1.5 倍的容錯特權。其帶來的票房、周邊與轉播等商業外部性，足以彌補場上 1.5 倍 RMSE 的產能落差。
+
+5. **第五關：絕對止損區 (Stop-Loss Zone)**
+   * 判定條件：未通過上述所有關卡 $\rightarrow$ **強烈建議不執行 (Decline Option)**。
+   * 決策說明：球員實力嚴重衰退，既未達專屬的動態及格線，又缺乏商業票房變現能力，為避免資產套牢，應果斷拒絕執行並釋出薪資空間。
   
 
-預測結果輸出範例：
-
-<p align="left">
-  <img src="./images/Lasso_results.png" alt="Lasso 模型預測結果" width="80%">
-</p>
